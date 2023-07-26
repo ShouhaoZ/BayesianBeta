@@ -1,0 +1,62 @@
+model {
+	for (n in 1:N) {
+    # beta distribution
+		y[n] ~ dbeta(theta.a[n], theta.b[n])  
+		theta.a[n] <- nv[n]*phi[n]			# mean
+		theta.b[n] <- (1-nv[n])*phi[n]	# precision
+		### model specification for mean of beta
+		logit(nv[n]) 	<- rnd.a[ID[n]] + f.nv.m[n] + f.nv.a[n]      
+		# spline for time on subject level
+		f.nv.m[n]	<- inprod(b.month[ID[n],],fp.month[month[n],])	
+		# spline for age
+		f.nv.a[n]	<- inprod(beta.age[],fp.age[Age[n],])
+		### model specification for precision of beta
+		log(phi[n]) 	<- rnd.b[ID[n]] + f.phi.m[n]
+		# spline for time
+		f.phi.m[n]	<- inprod(phi.month[],fp.month[month[n],]) 		  
+	}
+
+# priors for parameters
+	mu.a ~ dnorm(0.0, 1.0E-6)
+	mu.b ~ dnorm(0.0, 1.0E-6)
+	f.nv.s ~ dnorm(0.0, 1.0E-6)
+	f.phi.s ~ dnorm(0.0, 1.0E-6)
+
+# random effects of subject j
+	for (j in 1:n.ID){
+		rnd.a[j]	~ dnorm(rnd.m.a[j], tau.rnd.a)
+		rnd.m.a[j]	<- mu.a + f.nv.s*Sex[j]
+		rnd.b[j] 	~ dnorm(rnd.m.b[j], tau.rnd.b)
+		rnd.m.b[j]	<- mu.b + f.phi.s*Sex[j]
+	}
+
+# priors for spline functions
+	for (k in 1:nknots){
+		for (j in 1:n.ID){
+			# spline coefficient for time trend of subject j
+			b.month[j,k]	~ dnorm(beta.month[k], tau.b.m)   
+		}
+		beta.month[k]	~ dnorm(0, tau.beta.m)
+		beta.age[k]	~ dnorm(0, tau.beta.a)
+		phi.month[k]	~ dnorm(0, tau.phi.m)
+	}
+
+# priors for precision parameters
+	tau.rnd.a  ~ dgamma(1.0E-3,1.0E-3)
+	tau.rnd.b  ~ dgamma(1.0E-3,1.0E-3)
+	tau.b.m ~ dgamma(1.0E-3,1.0E-3)
+	tau.beta.m ~ dgamma(1.0E-3,1.0E-3)
+	tau.beta.a ~ dgamma(1.0E-3,1.0E-3)
+	tau.phi.m ~ dgamma(1.0E-3,1.0E-3)
+
+# estimated splines for time and age	
+	for (i in 1:n.month){
+		f.month.mean[i] <- inprod(beta.month[],fp.month[i,])
+	}
+	for (i in 1:n.Age){
+		f.age.mean[i] <- inprod(beta.age[],fp.age[i,])
+	}
+	for (i in 1:n.month){
+		f.month.prec[i] <- inprod(phi.month[],fp.month[i,])
+	}
+}
